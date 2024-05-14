@@ -156,6 +156,6 @@ pub fn decode(command: [][]const u8) !void {
         std.process.exit(1);
     };
 
-    const result = try decode.stringify(decodedResult.payload);
+    const result = try stringify(decodedResult.payload);
     try stdout.print("{s}\n", .{result});
 }
