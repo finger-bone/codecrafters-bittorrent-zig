@@ -10,6 +10,23 @@ pub const Torrent = struct {
         piece_length: i64,
         pieces: []const u8,
     },
+    pub fn stringify(self: @This()) []const u8 {
+        const allocator = std.heap.page_allocator;
+        const buffer = std.mem.Buffer.init(allocator, bufferSize);
+        defer buffer.deinit();
+
+        try buffer.writer().print("{");
+        try buffer.writer().print("\"announce\": \"{}\", ", .{self.announce});
+        try buffer.writer().print("\"info_hash\": \"{}\", ", .{std.encoding.hex.encode(&self.info_hash)});
+        try buffer.writer().print("\"info\": {{");
+        try buffer.writer().print("\"length\": {}, ", .{self.info.length});
+        try buffer.writer().print("\"piece_length\": {}, ", .{self.info.piece_length});
+        try buffer.writer().print("\"pieces\": \"{}\"", .{self.info.pieces});
+        try buffer.writer().print("}}");
+        try buffer.writer().print("}");
+
+        return buffer.toSlice();
+    }
 };
 
 pub fn parseFile(file_path: []const u8) !Torrent {

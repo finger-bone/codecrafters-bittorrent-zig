@@ -44,6 +44,7 @@ pub fn peers(args: [][]const u8) !void {
     try queryWriter.print("&left={d}", .{torrent.info.length});
     try queryWriter.print("&compact={d}", .{1});
 
+    try stderr.print("{s}", .{torrent.stringify()});
     const url = try std.mem.concat(allocator, u8, &.{
         torrent.announce,
         query.items,
