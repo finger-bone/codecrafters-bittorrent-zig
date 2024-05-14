@@ -10,6 +10,30 @@ pub const Payload = union(enum) {
     dict: std.StringArrayHashMap(Payload),
 };
 
+pub fn unbox(payload: Payload) ([]const u8 ||
+    i64 ||
+    std.ArrayList(([]const u8) || i64) ||
+    std.StringArrayHashMap(([]const u8) || i64)) {
+    switch (payload) {
+        .string => |s| s,
+        .int => |i| i,
+        .list => |l| {
+            var result = std.ArrayList(([]const u8) || i64).init(allocator);
+            for (l.items) |item| {
+                try result.append(try unbox(item));
+            }
+            return result;
+        },
+        .dict => |d| {
+            var result = std.StringArrayHashMap(([]const u8) || i64).init(allocator);
+            for (d.keys()) |key| {
+                try result.put(key, try unbox(d.get(key).?));
+            }
+            return result;
+        },
+    }
+}
+
 pub fn stringify(payload: Payload) ![]const u8 {
     var result = std.ArrayList(u8).init(allocator);
     switch (payload) {

@@ -4,6 +4,7 @@ const stderr = std.io.getStdErr().writer();
 const allocator = std.heap.page_allocator;
 const decode = @import("decode.zig").decode;
 const showInfo = @import("info.zig").showInfo;
+const peers = @import("peer.zig").peers;
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
@@ -20,5 +21,7 @@ pub fn main() !void {
         try decode(args);
     } else if (std.mem.eql(u8, command, "info")) {
         try showInfo(args);
+    } else if (std.mem.eql(u8, command, "peers")) {
+        try peers(args);
     }
 }
