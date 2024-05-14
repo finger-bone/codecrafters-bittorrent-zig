@@ -16,6 +16,6 @@ pub fn main() !void {
     const command = args[1];
 
     if (std.mem.eql(u8, command, "decode")) {
-        decode.decode(args);
+        try decode.decode(args);
     }
 }
