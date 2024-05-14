@@ -151,7 +151,7 @@ pub fn decodeDict(encodedValue: []const u8, start: usize) anyerror!DecodeResult 
 
 pub fn decode(command: [][]const u8) !void {
     const encodedStr = command[2];
-    const decodedResult = decode.decodeBencode(encodedStr, 0) catch {
+    const decodedResult = decodeBencode(encodedStr, 0) catch {
         try stdout.print("Invalid encoded value\n", .{});
         std.process.exit(1);
     };
