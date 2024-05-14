@@ -11,8 +11,7 @@ pub const Torrent = struct {
         pieces: []const u8,
     },
     pub fn stringify(self: @This()) []const u8 {
-        const allocator = std.heap.page_allocator;
-        const buffer = std.mem.Buffer.init(allocator, bufferSize);
+        const buffer: [bufferSize]u8 = undefined;
         defer buffer.deinit();
 
         try buffer.writer().print("{");
