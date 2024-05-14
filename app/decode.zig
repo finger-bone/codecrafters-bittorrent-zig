@@ -3,7 +3,7 @@ const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 const allocator = std.heap.page_allocator;
 
-const Payload = union(enum) {
+pub const Payload = union(enum) {
     string: []const u8,
     int: i64,
     list: std.ArrayList(Payload),
@@ -54,25 +54,25 @@ pub fn encode(payload: Payload) ![]const u8 {
     const writer = builder.writer();
     switch (payload) {
         .string => |s| {
-            try std.fmt.format(writer, "{d}:{s}", .{ s.len, s });
+            try writer.print("{d}:{s}", .{ s.len, s });
         },
         .int => |i| {
-            try std.fmt.print(writer, "i{d}e", .{i});
+            try writer.print("i{d}e", .{i});
         },
         .list => |l| {
-            try std.fmt.print(writer, "l", .{});
+            try writer.print("l", .{});
             for (l.items) |item| {
-                try builder.append(try encode(item));
+                try writer.print("{s}", .{try encode(item)});
             }
-            try std.fmt.print(writer, "e", .{});
+            try writer.print("e", .{});
         },
         .dict => |d| {
-            try std.fmt.print(writer, "d", .{});
+            try writer.print("d", .{});
             for (d.keys()) |key| {
-                try builder.append(try encode(Payload.string(key)));
-                try builder.append(try encode(d.get(key).?));
+                try writer.print("{d}:{s}", .{ key.len, key });
+                try writer.print("{s}", .{try encode(d.get(key).?)});
             }
-            try std.fmt.print(writer, "e", .{});
+            try writer.print("e", .{});
         },
     }
     return try builder.toOwnedSlice();
