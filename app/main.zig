@@ -2,7 +2,8 @@ const std = @import("std");
 const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 const allocator = std.heap.page_allocator;
-const decode = @import("decode.zig");
+const decode = @import("decode.zig").decode;
+const showInfo = @import("info.zig").showInfo;
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
@@ -16,6 +17,8 @@ pub fn main() !void {
     const command = args[1];
 
     if (std.mem.eql(u8, command, "decode")) {
-        try decode.decode(args);
+        try decode(args);
+    } else if (std.mem.eql(u8, command, "info")) {
+        try showInfo(args);
     }
 }
