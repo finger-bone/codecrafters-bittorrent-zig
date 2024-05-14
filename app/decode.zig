@@ -148,3 +148,14 @@ pub fn decodeDict(encodedValue: []const u8, start: usize) anyerror!DecodeResult 
         .next = next + 1,
     };
 }
+
+pub fn decode(command: [][]const u8) !void {
+    const encodedStr = command[2];
+    const decodedResult = decode.decodeBencode(encodedStr, 0) catch {
+        try stdout.print("Invalid encoded value\n", .{});
+        std.process.exit(1);
+    };
+
+    const result = try decode.stringify(decodedResult.payload);
+    try stdout.print("{s}\n", .{result});
+}

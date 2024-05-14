@@ -16,17 +16,6 @@ pub fn main() !void {
     const command = args[1];
 
     if (std.mem.eql(u8, command, "decode")) {
-        // You can use print statements as follows for debugging, they'll be visible when running tests.
-        try stderr.print("Logs from your program will appear here\n", .{});
-
-        // Uncomment this block to pass the first stage
-        const encodedStr = args[2];
-        const decodedResult = decode.decodeBencode(encodedStr, 0) catch {
-            try stdout.print("Invalid encoded value\n", .{});
-            std.process.exit(1);
-        };
-
-        const result = try decode.stringify(decodedResult.payload);
-        try stdout.print("{s}\n", .{result});
+        decode.decode(args);
     }
 }
