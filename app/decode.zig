@@ -3,7 +3,12 @@ const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 const allocator = std.heap.page_allocator;
 
-const Payload = union(enum) { string: []const u8, int: i64, list: std.ArrayList(Payload) };
+const Payload = union(enum) {
+    string: []const u8,
+    int: i64,
+    list: std.ArrayList(Payload),
+    dict: std.StringArrayHashMap(Payload),
+};
 
 pub fn stringify(payload: Payload) ![]const u8 {
     var result = std.ArrayList(u8).init(allocator);
@@ -28,6 +33,18 @@ pub fn stringify(payload: Payload) ![]const u8 {
             }
             try std.fmt.format(result.writer(), "]", .{});
         },
+        .dict => |d| {
+            try std.fmt.format(result.writer(), "{{", .{});
+            var i: usize = 0;
+            for (d.keys()) |key| {
+                try std.fmt.format(result.writer(), "\"{s}\":{s}", .{ key, try stringify(d.get(key).?) });
+                if (i < d.keys().len - 1) {
+                    try std.fmt.format(result.writer(), ",", .{});
+                }
+                i += 1;
+            }
+            try std.fmt.format(result.writer(), "}}", .{});
+        },
     }
     return result.toOwnedSlice();
 }
@@ -47,13 +64,19 @@ pub fn decodeBencode(encodedValue: []const u8, start: usize) !DecodeResult {
     } else if (encodedValue[start] == 'l') {
         //lists, l<contents>e
         return decodeList(encodedValue, start);
+    } else if (encodedValue[start] == 'd') {
+        //dicts, d<key1><value1><key2><value2>...e
+        return decodeDict(encodedValue, start);
     } else {
-        try stdout.print("Only strings are supported at the moment\n", .{});
+        try stderr.print("Unrecognized Type, the string to parse is {s}\n", .{encodedValue[start..]});
         std.process.exit(1);
     }
 }
 
 pub fn decodeNumber(encodedValue: []const u8, start: usize) !DecodeResult {
+    if (encodedValue[start] != 'i') {
+        return error.InvalidArgument;
+    }
     const e_char_maybe = std.mem.indexOf(u8, encodedValue[start..], "e");
     if (e_char_maybe == null) {
         return error.InvalidArgument;
@@ -68,6 +91,9 @@ pub fn decodeNumber(encodedValue: []const u8, start: usize) !DecodeResult {
 }
 
 pub fn decodeString(encodedValue: []const u8, start: usize) !DecodeResult {
+    if (encodedValue[start] > '9' or encodedValue[start] < '0') {
+        return error.InvalidArgument;
+    }
     const firstColonMaybe = std.mem.indexOf(u8, encodedValue[start..], ":");
     if (firstColonMaybe == null) {
         return error.InvalidArgument;
@@ -96,6 +122,28 @@ pub fn decodeList(encodedValue: []const u8, start: usize) anyerror!DecodeResult 
     return DecodeResult{
         .payload = Payload{
             .list = list,
+        },
+        .next = next + 1,
+    };
+}
+
+pub fn decodeDict(encodedValue: []const u8, start: usize) anyerror!DecodeResult {
+    if (encodedValue[start] != 'd') {
+        return error.InvalidArgument;
+    }
+    var next = start + 1;
+    var dict = std.StringArrayHashMap(Payload).init(allocator);
+    while (encodedValue[next] != 'e') {
+        const keyResult = try decodeString(encodedValue, next);
+        const key = keyResult.payload.string;
+        next = keyResult.next;
+        const valueResult = try decodeBencode(encodedValue, next);
+        try dict.put(key, valueResult.payload);
+        next = valueResult.next;
+    }
+    return DecodeResult{
+        .payload = Payload{
+            .dict = dict,
         },
         .next = next + 1,
     };
