@@ -32,6 +32,8 @@ pub fn peers(args: [][]const u8) !void {
     const file_path = args[2];
     const torrent = try parseFile(file_path);
 
+    try stderr.print("torrent: {s}\n", .{torrent.announce});
+
     var query = std.ArrayList(u8).init(allocator);
     defer query.deinit();
     const queryWriter = query.writer();
@@ -44,7 +46,6 @@ pub fn peers(args: [][]const u8) !void {
     try queryWriter.print("&left={d}", .{torrent.info.length});
     try queryWriter.print("&compact={d}", .{1});
 
-    try stderr.print("{s}", .{torrent.stringify()});
     const url = try std.mem.concat(allocator, u8, &.{
         torrent.announce,
         query.items,

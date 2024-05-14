@@ -153,9 +153,12 @@ pub fn decodeString(encodedValue: []const u8, start: usize) !DecodeResult {
     }
     const firstColon = start + firstColonMaybe.?;
     const length = try std.fmt.parseInt(usize, encodedValue[start..firstColon], 10);
+    const value = try allocator.alloc(u8, length);
+
+    std.mem.copyBackwards(u8, value, encodedValue[firstColon + 1 .. firstColon + 1 + length]);
     return DecodeResult{
         .payload = Payload{
-            .string = encodedValue[firstColon + 1 .. firstColon + 1 + length],
+            .string = value,
         },
         .next = firstColon + 1 + length,
     };
