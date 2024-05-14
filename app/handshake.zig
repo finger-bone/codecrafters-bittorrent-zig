@@ -35,5 +35,5 @@ pub fn handshake(args: [][]const u8) !void {
 
     try writer.writeStruct(handshakeContent);
     const serverHandshake = try reader.readStruct(HandShake);
-    try stdout.print("Peer ID: {s}\n", .{serverHandshake.peer_id});
+    try stdout.print("Peer ID: {s}\n", .{std.fmt.bytesToHex(serverHandshake.peer_id, .lower)});
 }
