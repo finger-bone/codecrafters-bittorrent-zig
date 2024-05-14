@@ -1,6 +1,8 @@
 const std = @import("std");
 const stdout = std.io.getStdOut().writer();
 const decodeDict = @import("decode.zig").decodeDict;
+const encode = @import("encode.zig").encode;
+const Payload = @import("decode.zig").Payload;
 const allocator = std.heap.page_allocator;
 
 pub fn showInfo(args: [][]const u8) !void {
@@ -12,7 +14,13 @@ pub fn showInfo(args: [][]const u8) !void {
     const result = try decodeDict(encodedStr, 0);
     const dict = result.payload.dict;
     const announce = dict.get("announce").?.string;
-    const length = dict.get("info").?.dict.get("length").?.int;
+    const info = dict.get("info").?.dict;
+    const length = info.get("length").?.int;
+    var hash: [std.crypto.hash.Sha1.digest_length]u8 = undefined;
+    std.crypto.hash.sha1.hash(encode(Payload{
+        .dict = info,
+    }), hash[0..]);
     try stdout.print("Tracker URL: {s}\n", .{announce});
     try stdout.print("Length: {}\n", .{length});
+    try stdout.print("Info Hash: {s}\n", .{std.fmt.bytesToHex(hash, .lower)});
 }

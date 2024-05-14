@@ -49,6 +49,35 @@ pub fn stringify(payload: Payload) ![]const u8 {
     return result.toOwnedSlice();
 }
 
+pub fn encode(payload: Payload) ![]const u8 {
+    var builder = std.ArrayList(u8).init(allocator);
+    const writer = builder.writer();
+    switch (payload) {
+        .string => |s| {
+            try std.fmt.format(writer, "{d}:{s}", .{ s.len, s });
+        },
+        .int => |i| {
+            try std.fmt.print(writer, "i{d}e", .{i});
+        },
+        .list => |l| {
+            try std.fmt.print(writer, "l", .{});
+            for (l.items) |item| {
+                try builder.append(try encode(item));
+            }
+            try std.fmt.print(writer, "e", .{});
+        },
+        .dict => |d| {
+            try std.fmt.print(writer, "d", .{});
+            for (d.keys()) |key| {
+                try builder.append(try encode(Payload.string(key)));
+                try builder.append(try encode(d.get(key).?));
+            }
+            try std.fmt.print(writer, "e", .{});
+        },
+    }
+    return try builder.toOwnedSlice();
+}
+
 const DecodeResult = struct {
     payload: Payload,
     next: usize,
