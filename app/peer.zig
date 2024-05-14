@@ -1,8 +1,10 @@
 const std = @import("std");
 const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
-const decode = @import("decode.zig");
+const encoding = @import("encoding.zig");
+const parseFile = @import("parse.zig").parseFile;
 const allocator = std.heap.page_allocator;
+const bufferSize = @import("main.zig").bufferSize;
 
 // the encode function in std.Uri seems to have been removed...?
 pub fn urlEncode(input: []const u8) ![]const u8 {
@@ -27,41 +29,23 @@ pub fn urlEncode(input: []const u8) ![]const u8 {
 }
 
 pub fn peers(args: [][]const u8) !void {
-    try stderr.print("peers\n", .{});
     const file_path = args[2];
-    const file = try std.fs.cwd().openFile(file_path, .{});
-    defer file.close();
-
-    const bufferSize = 4096;
-    const encodedStr = try file.readToEndAlloc(allocator, bufferSize);
-    defer allocator.free(encodedStr);
-
-    const result = try decode.decodeDict(encodedStr, 0);
-
-    const dict = result.payload.dict;
-
-    const info = dict.get("info").?.dict;
-    var hash: [std.crypto.hash.Sha1.digest_length]u8 = undefined;
-    std.crypto.hash.Sha1.hash(try decode.encode(
-        decode.Payload{ .dict = info },
-    ), &hash, .{});
+    const torrent = try parseFile(file_path);
 
     var query = std.ArrayList(u8).init(allocator);
     defer query.deinit();
     const queryWriter = query.writer();
     try queryWriter.print("?", .{});
-    try queryWriter.print("info_hash={s}", .{try urlEncode(&hash)});
+    try queryWriter.print("info_hash={s}", .{try urlEncode(&torrent.info_hash)});
     try queryWriter.print("&peer_id={s}", .{"00112233445566778899"});
     try queryWriter.print("&port={d}", .{6881});
     try queryWriter.print("&uploaded={d}", .{0});
     try queryWriter.print("&downloaded={d}", .{0});
-    try queryWriter.print("&left={d}", .{info.get("length").?.int});
+    try queryWriter.print("&left={d}", .{torrent.info.length});
     try queryWriter.print("&compact={d}", .{1});
 
-    const trackerUrl = dict.get("announce").?.string;
-
     const url = try std.mem.concat(allocator, u8, &.{
-        trackerUrl,
+        torrent.announce,
         query.items,
     });
     const uri = try std.Uri.parse(url);
@@ -83,7 +67,7 @@ pub fn peers(args: [][]const u8) !void {
     var body: [bufferSize]u8 = undefined;
     const len = try req.readAll(&body);
 
-    const response = try decode.decodeDict(body[0..len], 0);
+    const response = try encoding.decodeDict(body[0..len], 0);
     var peersWindow = std.mem.window(u8, response.payload.dict.get("peers").?.string, 6, 6);
     while (peersWindow.next()) |peer| {
         const ip = peer[0..4];

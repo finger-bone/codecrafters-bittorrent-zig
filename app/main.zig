@@ -2,9 +2,12 @@ const std = @import("std");
 const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 const allocator = std.heap.page_allocator;
-const decode = @import("decode.zig").decode;
+const decode = @import("encoding.zig").decode;
 const showInfo = @import("info.zig").showInfo;
 const peers = @import("peer.zig").peers;
+const handshake = @import("handshake.zig").handshake;
+
+pub const bufferSize = 4096;
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
@@ -23,5 +26,7 @@ pub fn main() !void {
         try showInfo(args);
     } else if (std.mem.eql(u8, command, "peers")) {
         try peers(args);
+    } else if (std.mem.eql(u8, command, "handshake")) {
+        try handshake(args);
     }
 }
