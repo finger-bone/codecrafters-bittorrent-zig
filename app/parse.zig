@@ -1,6 +1,7 @@
 const std = @import("std");
 const encoding = @import("encoding.zig");
 const bufferSize = @import("main.zig").bufferSize;
+const allocator = std.heap.page_allocator;
 
 pub const Torrent = struct {
     announce: []const u8,
@@ -11,7 +12,7 @@ pub const Torrent = struct {
         pieces: []const u8,
     },
     pub fn stringify(self: @This()) []const u8 {
-        const buffer: [bufferSize]u8 = undefined;
+        const buffer = std.ArraList(u8).init(allocator);
         defer buffer.deinit();
 
         try buffer.writer().print("{");
