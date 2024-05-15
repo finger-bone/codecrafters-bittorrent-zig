@@ -52,7 +52,7 @@ pub const PeerMessage = struct {
     }
 
     pub fn buildMessage(id: PeerMessageId, payload: []const u8) !PeerMessage {
-        return PeerMessage{ .head = PeerMessage.Head{ .length = @intCast(payload.len), .id = id }, .payload = payload };
+        return PeerMessage{ .head = PeerMessage.Head{ .length = @intCast(payload.len + 1), .id = id }, .payload = payload };
     }
 
     pub fn buildRequestPayload(piece_index: usize, block_index: usize, piece_len: usize) []const u8 {
