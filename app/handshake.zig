@@ -21,12 +21,12 @@ pub fn handshake(address: std.net.Address, torrent: Torrent) !struct { handshake
         .{ ip[0], ip[1], ip[2], ip[3], port },
     );
 
-    const maxAttempts = 5;
+    const maxAttempts = 2;
     var attempt: u32 = 0;
     var stream: std.net.Stream = undefined;
     while (attempt < maxAttempts) : (attempt += 1) {
         stream = std.net.tcpConnectToAddress(address) catch |err| {
-            std.debug.warn("Failed to connect: {}\n", .{err});
+            try stderr.print("Failed to connect: {}\n", .{err});
             continue;
         };
         break;

@@ -163,6 +163,7 @@ pub fn downloadPieceHandler(args: [][]const u8) !void {
     const piece_index = try std.fmt.parseInt(usize, args[5], 10);
 
     const torrent = try parseFile(torrent_file_path);
+
     const piece_hash = torrent.info.pieces[piece_index * hashSize .. (piece_index + 1) * hashSize];
 
     try downloadPiece(torrent, output_file_path, piece_hash, piece_index);
