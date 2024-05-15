@@ -22,7 +22,7 @@ pub fn handshake(address: std.net.Address, torrent: Torrent) !struct { handshake
     );
 
     const maxAttempts = 5;
-    var attempt = 0;
+    var attempt: u32 = 0;
     var stream: std.net.Stream = undefined;
     while (attempt < maxAttempts) : (attempt += 1) {
         stream = std.net.tcpConnectToAddress(address) catch |err| {
