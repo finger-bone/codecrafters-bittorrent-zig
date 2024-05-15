@@ -14,9 +14,12 @@ const HandShake = extern struct {
 };
 
 pub fn handshake(address: std.net.Address, torrent: Torrent) !struct { handshake: HandShake, stream: std.net.Stream } {
-    const ip = try std.mem.toBytes(address.in);
+    const ip = std.mem.toBytes(address.in.sa.addr);
     const port = try std.fmt.parseInt(u16, address.port, 10);
-    try stderr.print("Connecting to {s}:{d}\n", .{ ip, port });
+    try stderr.print(
+        "Connecting to {d}.{d}.{d}.{d}:{d}\n",
+        .{ ip[0], ip[1], ip[2], ip[3], port },
+    );
 
     var stream = try std.net.tcpConnectToAddress(address);
 
