@@ -205,7 +205,7 @@ pub fn decodeDict(encodedValue: []const u8, start: usize) anyerror!DecodeResult 
     };
 }
 
-pub fn decode(args: [][]const u8) !void {
+pub fn decodeHandler(args: [][]const u8) !void {
     const encodedStr = args[2];
     const decodedResult = decodeBencode(encodedStr, 0) catch {
         try stdout.print("Invalid encoded value\n", .{});

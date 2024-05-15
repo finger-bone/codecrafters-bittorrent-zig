@@ -2,10 +2,11 @@ const std = @import("std");
 const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 const allocator = std.heap.page_allocator;
-const decode = @import("encoding.zig").decode;
-const showInfo = @import("info.zig").showInfo;
-const peers = @import("peer.zig").peers;
-const handshake = @import("handshake.zig").handshake;
+const decodeHandler = @import("encoding.zig").decodeHandler;
+const infoHandler = @import("info.zig").infoHandler;
+const peersHandler = @import("peer.zig").peersHandler;
+const handshakeHandler = @import("handshake.zig").handshakeHandler;
+const downloadPieceHandler = @import("download_piece.zig").downloadPieceHandler;
 
 pub const bufferSize = 4096;
 
@@ -21,12 +22,14 @@ pub fn main() !void {
     const command = args[1];
 
     if (std.mem.eql(u8, command, "decode")) {
-        try decode(args);
+        try decodeHandler(args);
     } else if (std.mem.eql(u8, command, "info")) {
-        try showInfo(args);
+        try infoHandler(args);
     } else if (std.mem.eql(u8, command, "peers")) {
-        try peers(args);
+        try peersHandler(args);
     } else if (std.mem.eql(u8, command, "handshake")) {
-        try handshake(args);
+        try handshakeHandler(args);
+    } else if (std.mem.eql(u8, command, "download_piece")) {
+        try downloadPieceHandler(args);
     }
 }

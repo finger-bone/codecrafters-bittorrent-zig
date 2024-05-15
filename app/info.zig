@@ -7,8 +7,9 @@ const encode = @import("encoding.zig").encode;
 const Payload = @import("encoding.zig").Payload;
 const allocator = std.heap.page_allocator;
 const parseFile = @import("parse.zig").parseFile;
+const hashSize = @import("parse.zig").hashSize;
 
-pub fn showInfo(args: [][]const u8) !void {
+pub fn infoHandler(args: [][]const u8) !void {
     const file_path = args[2];
     const torrent = try parseFile(file_path);
 
@@ -18,8 +19,8 @@ pub fn showInfo(args: [][]const u8) !void {
     try stdout.print("Piece Length: {}\n", .{torrent.info.piece_length});
 
     try stdout.print("Pieces:\n", .{});
-    var window = std.mem.window(u8, torrent.info.pieces, 20, 20);
-    while (window.next()) |piece| {
+    var it = std.mem.window(u8, torrent.info.pieces, hashSize, hashSize);
+    while (it.next()) |piece| {
         const h = try std.fmt.allocPrint(std.heap.page_allocator, "{s}", .{std.fmt.fmtSliceHexLower(piece[0..20])});
         try stdout.print("{s}\n", .{h});
     }

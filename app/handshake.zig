@@ -1,5 +1,6 @@
 const std = @import("std");
 const parseFile = @import("parse.zig").parseFile;
+const Torrent = @import("parse.zig").Torrent;
 
 const stdout = std.io.getStdOut().writer();
 
@@ -11,7 +12,25 @@ const HandShake = extern struct {
     peer_id: [20]u8 align(1),
 };
 
-pub fn handshake(args: [][]const u8) !void {
+pub fn handshake(address: std.net.Address, torrent: Torrent) !struct { handshake: HandShake, stream: std.net.Stream } {
+    var stream = try std.net.tcpConnectToAddress(address);
+    const writer = stream.writer();
+    const reader = stream.reader();
+
+    const handshakeContent = HandShake{
+        .info_hash = torrent.info_hash,
+        .peer_id = "00112233445566778899".*,
+    };
+
+    try writer.writeStruct(handshakeContent);
+    const serverHandshake = try reader.readStruct(HandShake);
+    return .{
+        .handshake = serverHandshake,
+        .stream = stream,
+    };
+}
+
+pub fn handshakeHandler(args: [][]const u8) !void {
     var it = std.mem.splitScalar(u8, args[3], ':');
     const ip = it.first();
     const port = it.next().?;
@@ -24,16 +43,8 @@ pub fn handshake(args: [][]const u8) !void {
     const file_path = args[2];
     const torrent = try parseFile(file_path);
 
-    var stream = try std.net.tcpConnectToAddress(address);
-    const writer = stream.writer();
-    const reader = stream.reader();
+    const res = try handshake(address, torrent);
+    defer res.stream.close();
 
-    const handshakeContent = HandShake{
-        .info_hash = torrent.info_hash,
-        .peer_id = "00112233445566778899".*,
-    };
-
-    try writer.writeStruct(handshakeContent);
-    const serverHandshake = try reader.readStruct(HandShake);
-    try stdout.print("Peer ID: {s}\n", .{std.fmt.bytesToHex(serverHandshake.peer_id, .lower)});
+    try stdout.print("Peer ID: {s}\n", .{std.fmt.bytesToHex(res.handshake.peer_id, .lower)});
 }

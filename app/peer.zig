@@ -3,6 +3,7 @@ const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 const encoding = @import("encoding.zig");
 const parseFile = @import("parse.zig").parseFile;
+const Torrent = @import("parse.zig").Torrent;
 const allocator = std.heap.page_allocator;
 const bufferSize = @import("main.zig").bufferSize;
 
@@ -28,12 +29,7 @@ pub fn urlEncode(input: []const u8) ![]const u8 {
     return output[0..outputIndex];
 }
 
-pub fn peers(args: [][]const u8) !void {
-    const file_path = args[2];
-    const torrent = try parseFile(file_path);
-
-    try stderr.print("torrent: {s}\n", .{torrent.announce});
-
+pub fn getPeers(torrent: Torrent) ![]std.net.Address {
     var query = std.ArrayList(u8).init(allocator);
     defer query.deinit();
     const queryWriter = query.writer();
@@ -71,9 +67,27 @@ pub fn peers(args: [][]const u8) !void {
 
     const response = try encoding.decodeDict(body[0..len], 0);
     var peersWindow = std.mem.window(u8, response.payload.dict.get("peers").?.string, 6, 6);
+
+    var res = std.ArrayList(std.net.Address).init(allocator);
+
     while (peersWindow.next()) |peer| {
         const ip = peer[0..4];
         const port = std.mem.bytesToValue(u16, peer[4..6]);
-        try stdout.print("{d}.{d}.{d}.{d}:{d}\n", .{ ip[0], ip[1], ip[2], ip[3], std.mem.bigToNative(u16, port) });
+        try res.append(std.net.Address.initIp4(ip.*, port));
+    }
+
+    return try res.toOwnedSlice();
+}
+
+pub fn peersHandler(args: [][]const u8) !void {
+    const file_path = args[2];
+    const torrent = try parseFile(file_path);
+    const allPeers = try getPeers(torrent);
+    for (allPeers) |peer| {
+        const addr = std.mem.toBytes(peer.in.sa.addr);
+        const port = peer.in.sa.port;
+        try stdout.print("{d}.{d}.{d}.{d}:{d}\n", .{
+            addr[0], addr[1], addr[2], addr[3], port,
+        });
     }
 }

@@ -3,9 +3,11 @@ const encoding = @import("encoding.zig");
 const bufferSize = @import("main.zig").bufferSize;
 const allocator = std.heap.page_allocator;
 
+pub const hashSize = std.crypto.hash.Sha1.digest_length;
+
 pub const Torrent = struct {
     announce: []const u8,
-    info_hash: [20]u8,
+    info_hash: [hashSize]u8,
     info: struct {
         length: i64,
         piece_length: i64,
@@ -28,7 +30,7 @@ pub fn parseFile(file_path: []const u8) !Torrent {
     const info = dict.get("info").?.dict;
     const length = info.get("length").?.int;
 
-    var info_hash: [20]u8 = undefined;
+    var info_hash: [hashSize]u8 = undefined;
     std.crypto.hash.Sha1.hash(try encoding.encode(encoding.Payload{
         .dict = info,
     }), &info_hash, .{});
