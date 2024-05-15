@@ -4,13 +4,13 @@ const stderr = std.io.getStdErr().writer();
 const parseFile = @import("parse.zig").parseFile;
 const getPeers = @import("peer.zig").getPeers;
 const Torrent = @import("parse.zig").Torrent;
-const handsahke = @import("handshake.zig").handshake;
+const handshake = @import("handshake.zig").handshake;
 const allocator = std.heap.page_allocator;
 const hashSize = @import("parse.zig").hashSize;
 
 // 16 KB
 const block_size = 16 * 1024;
-const bufferSize = 4096;
+const bufferSize = @import("main.zig").bufferSize;
 
 pub const PeerMessageId = enum(u8) {
     choke = 0,
@@ -71,7 +71,7 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, piece_hash: []cons
     const peers = try getPeers(torrent);
     try stderr.print("Trying to download piece {d} from {d} peer\n", .{ piece_index, peers.len });
 
-    const res = try handsahke(peers[1], torrent);
+    const res = try handshake(peers[1], torrent);
 
     const server_handshake = res.handshake;
     const stream = res.stream;

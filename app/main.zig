@@ -8,7 +8,7 @@ const peersHandler = @import("peer.zig").peersHandler;
 const handshakeHandler = @import("handshake.zig").handshakeHandler;
 const downloadPieceHandler = @import("download_piece.zig").downloadPieceHandler;
 
-pub const bufferSize = 4096;
+pub const bufferSize = 4096 * 4;
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
