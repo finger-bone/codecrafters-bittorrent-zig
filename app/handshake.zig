@@ -21,19 +21,20 @@ pub fn handshake(address: std.net.Address, torrent: Torrent) !struct { handshake
         .{ ip[0], ip[1], ip[2], ip[3], port },
     );
 
-    const stream = try std.net.tcpConnectToAddress(address);
-
-    try stderr.print("Connected\n", .{});
-
-    const writer = stream.writer();
-    const reader = stream.reader();
-
     const handshakeContent = HandShake{
         .info_hash = torrent.info_hash,
         .peer_id = "00112233445566778899".*,
     };
 
+    const stream = try std.net.tcpConnectToAddress(address);
+
+    try stderr.print("Connected\n", .{});
+
+    const writer = stream.writer();
     try writer.writeStruct(handshakeContent);
+
+    const reader = stream.reader();
+
     const serverHandshake = try reader.readStruct(HandShake);
     return .{
         .handshake = serverHandshake,

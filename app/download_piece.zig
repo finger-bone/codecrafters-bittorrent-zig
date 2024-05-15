@@ -72,7 +72,7 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, piece_hash: []cons
 
     try stderr.print("Trying to download piece {d} from {d} peer\n", .{ piece_index, peers.len });
 
-    const res = try handshake(peers[1], torrent);
+    const res = try handshake(peers[0], torrent);
 
     const server_handshake = res.handshake;
     const stream = res.stream;
