@@ -23,6 +23,8 @@ pub fn handshake(address: std.net.Address, torrent: Torrent) !struct { handshake
 
     var stream = try std.net.tcpConnectToAddress(address);
 
+    try stderr.print("Connected\n", .{});
+
     const writer = stream.writer();
     const reader = stream.reader();
 

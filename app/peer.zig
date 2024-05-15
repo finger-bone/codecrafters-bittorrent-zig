@@ -73,7 +73,10 @@ pub fn getPeers(torrent: Torrent) ![]std.net.Address {
     while (peersWindow.next()) |peer| {
         const ip = peer[0..4];
         const port = std.mem.bytesToValue(u16, peer[4..6]);
-        try res.append(std.net.Address.initIp4(ip.*, port));
+        try res.append(std.net.Address.initIp4(
+            .{ ip[0], ip[1], ip[2], ip[3] },
+            port,
+        ));
     }
 
     return try res.toOwnedSlice();
