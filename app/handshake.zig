@@ -1,6 +1,7 @@
 const std = @import("std");
 const parseFile = @import("parse.zig").parseFile;
 const Torrent = @import("parse.zig").Torrent;
+const stderr = std.io.getStdErr().writer();
 
 const stdout = std.io.getStdOut().writer();
 
@@ -13,7 +14,12 @@ const HandShake = extern struct {
 };
 
 pub fn handshake(address: std.net.Address, torrent: Torrent) !struct { handshake: HandShake, stream: std.net.Stream } {
+    const ip = try std.mem.toBytes(address.in);
+    const port = try std.fmt.parseInt(u16, address.port, 10);
+    try stderr.print("Connecting to {s}:{d}\n", .{ ip, port });
+
     var stream = try std.net.tcpConnectToAddress(address);
+
     const writer = stream.writer();
     const reader = stream.reader();
 
