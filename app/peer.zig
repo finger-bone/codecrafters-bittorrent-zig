@@ -58,12 +58,22 @@ pub fn getPeers(torrent: Torrent) ![]std.net.Address {
 
     defer req.deinit();
 
+    try stderr.print(
+        "Requesting Peers with url: {s}\n",
+        .{url},
+    );
+
     try req.send();
     try req.wait();
     try req.finish();
 
     var body: [bufferSize]u8 = undefined;
     const len = try req.readAll(&body);
+
+    try stderr.print(
+        "Received {d} bytes\n",
+        .{len},
+    );
 
     const response = try encoding.decodeDict(body[0..len], 0);
     var peersWindow = std.mem.window(u8, response.payload.dict.get("peers").?.string, 6, 6);

@@ -22,14 +22,19 @@ pub fn main() !void {
     const command = args[1];
 
     if (std.mem.eql(u8, command, "decode")) {
+        try stderr.print("decode\n", .{});
         try decodeHandler(args);
     } else if (std.mem.eql(u8, command, "info")) {
+        try stderr.print("info\n", .{});
         try infoHandler(args);
     } else if (std.mem.eql(u8, command, "peers")) {
+        try stderr.print("peers\n", .{});
         try peersHandler(args);
     } else if (std.mem.eql(u8, command, "handshake")) {
+        try stderr.print("handshake\n", .{});
         try handshakeHandler(args);
     } else if (std.mem.eql(u8, command, "download_piece")) {
+        try stderr.print("download_piece\n", .{});
         try downloadPieceHandler(args);
     }
 }
