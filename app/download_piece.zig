@@ -82,7 +82,7 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
     var res: struct { handshake: Handshake, stream: std.net.Stream } = undefined;
 
     const maxAtempts = 5;
-    var attempts = 0;
+    var attempts: usize = 0;
     while (attempts < maxAtempts) {
         res = try handshake(peers[attempts], torrent);
         if (res != null) {
