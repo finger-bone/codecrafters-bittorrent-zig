@@ -75,6 +75,11 @@ pub const PeerMessage = struct {
 };
 
 pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, piece_index: usize) !void {
+    try stderr.print(
+        "Torrent Piece Length: {d}, Piece Index: {d}\n",
+        .{ torrent.info.piece_length, piece_index },
+    );
+
     const peers = try getPeers(torrent);
 
     try stderr.print("Trying to download piece {d} from {d} peer\n", .{ piece_index, peers.len });
