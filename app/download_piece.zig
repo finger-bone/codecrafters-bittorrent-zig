@@ -7,6 +7,7 @@ const Torrent = @import("parse.zig").Torrent;
 const handshake = @import("handshake.zig").handshake;
 const allocator = std.heap.page_allocator;
 const hashSize = @import("parse.zig").hashSize;
+const Handshake = @import("handshake.zig").Handshake;
 
 // 16 KB
 const blockSize: u32 = 16 * 1024;
@@ -78,7 +79,17 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
 
     try stderr.print("Trying to download piece {d} from {d} peer\n", .{ piece_index, peers.len });
 
-    const res = try handshake(peers[0], torrent);
+    var res: struct { handshake: Handshake, stream: std.net.Stream } = undefined;
+
+    const maxAtempts = 5;
+    var attempts = 0;
+    while (attempts < maxAtempts) {
+        res = try handshake(peers[attempts], torrent);
+        if (res != null) {
+            break;
+        }
+        attempts += 1;
+    }
 
     const server_handshake = res.handshake;
     const stream = res.stream;

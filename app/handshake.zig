@@ -5,7 +5,7 @@ const stderr = std.io.getStdErr().writer();
 
 const stdout = std.io.getStdOut().writer();
 
-const HandShake = extern struct {
+pub const HandShake = extern struct {
     protocol_length: u8 align(1) = 19,
     ident: [19]u8 align(1) = "BitTorrent protocol".*,
     reserved: [8]u8 align(1) = std.mem.zeroes([8]u8),
