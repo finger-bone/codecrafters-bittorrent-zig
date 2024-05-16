@@ -7,7 +7,6 @@ const Torrent = @import("parse.zig").Torrent;
 const handshake = @import("handshake.zig").handshake;
 const allocator = std.heap.page_allocator;
 const hashSize = @import("parse.zig").hashSize;
-const Handshake = @import("handshake.zig").HandShake;
 
 // 16 KB
 const blockSize: u32 = 16 * 1024;
@@ -35,9 +34,9 @@ pub const PeerMessage = struct {
         const reader = stream.reader();
 
         const length = try reader.readInt(u32, .big);
+
         const id = try reader.readByte();
 
-        try stderr.print("Header: length: {d}, id: {}\n", .{ length, id });
         const payload = try allocator.alloc(u8, length - 1);
         const l = try reader.readAll(payload);
 
@@ -84,7 +83,7 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
 
     try stderr.print("Trying to download piece {d} from {d} peer\n", .{ piece_index, peers.len });
 
-    const res = try handshake(peers[0], torrent);
+    const res = try handshake(peers[1], torrent);
 
     const server_handshake = res.handshake;
     const stream = res.stream;
@@ -121,31 +120,26 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
     // send request message
     try stderr.print("Sending request message\n", .{});
 
-    const pieceLength: u32 = if (torrent.info.length > (torrent.info.piece_length * @as(i64, @intCast(piece_index))))
-        @intCast(torrent.info.piece_length)
-    else
-        @intCast(torrent.info.length - torrent.info.piece_length * @as(i64, @intCast(piece_index)));
-
     var i: u32 = 0;
 
-    try stderr.print("Estiimated block count: {}\n", .{
-        pieceLength / blockSize + (if (pieceLength % blockSize != 0)
-            @as(u32, 1)
-        else
-            @as(u32, 0)),
-    });
+    const totalLength: u32 = @intCast(torrent.info.length);
+    const eachPieceLength: u32 = @intCast(torrent.info.piece_length);
+    const totalPieces: u32 = @intCast(torrent.info.pieces.len / hashSize);
 
-    var piece = try allocator.alloc(u8, pieceLength);
+    const thisPieceSize = if (piece_index == totalPieces - 1) totalLength % eachPieceLength else eachPieceLength;
 
-    while (i * blockSize < pieceLength) {
+    var piece = try allocator.alloc(u8, thisPieceSize);
+
+    while (i * blockSize < thisPieceSize) {
         var payload: [12]u8 = undefined;
+        const blockLength = if (thisPieceSize > (blockSize * i + blockSize)) blockSize else thisPieceSize - blockSize * i;
+
+        try stderr.print("\nBlock Index: {d}\n", .{i});
+        try stderr.print("Block Length: {d}\n\n", .{blockLength});
         try PeerMessage.buildRequestPayload(
             @intCast(piece_index),
             @intCast(i * blockSize),
-            if (pieceLength > blockSize * i + blockSize)
-                blockSize
-            else
-                pieceLength - blockSize * i,
+            @intCast(blockLength),
             &payload,
         );
         const rqst = try PeerMessage.buildMessage(PeerMessageId.request, &payload);
@@ -158,7 +152,6 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
         try PeerMessage.sendMessage(stream, rqst);
         const pieceBlock = try PeerMessage.tryReceive(stream);
         if (pieceBlock.id != .piece) return error.InvalidPiece;
-        i += 1;
 
         _ = std.mem.readInt(u32, pieceBlock.payload[0..4], .big);
         const begin = std.mem.readInt(u32, pieceBlock.payload[4..8], .big);
@@ -166,6 +159,7 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
             piece[begin .. begin + pieceBlock.payload.len - 8],
             pieceBlock.payload[8..pieceBlock.payload.len],
         );
+        i += 1;
     }
 
     var file: std.fs.File = try std.fs.createFileAbsolute(file_path, .{});

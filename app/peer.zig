@@ -103,7 +103,7 @@ pub fn peersHandler(args: [][]const u8) !void {
     const allPeers = try getPeers(torrent);
     for (allPeers) |peer| {
         const addr = std.mem.toBytes(peer.in.sa.addr);
-        const port = peer.in.sa.port;
+        const port = std.mem.bigToNative(u16, peer.in.sa.port);
         try stdout.print("{d}.{d}.{d}.{d}:{d}\n", .{
             addr[0], addr[1], addr[2], addr[3], port,
         });
