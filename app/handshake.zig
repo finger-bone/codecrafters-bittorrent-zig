@@ -31,11 +31,12 @@ pub fn handshake(address: std.net.Address, torrent: Torrent) !struct { handshake
     try stderr.print("Connected\n", .{});
 
     const writer = stream.writer();
+    // no endian issue because all fields are u8
     try writer.writeStruct(handshakeContent);
 
     const reader = stream.reader();
 
-    const serverHandshake = try reader.readStruct(HandShake);
+    const serverHandshake = try reader.readStructEndian(HandShake, .big);
     return .{
         .handshake = serverHandshake,
         .stream = stream,

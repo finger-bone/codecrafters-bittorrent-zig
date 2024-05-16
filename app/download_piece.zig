@@ -9,7 +9,7 @@ const allocator = std.heap.page_allocator;
 const hashSize = @import("parse.zig").hashSize;
 
 // 16 KB
-const block_size = 16 * 1024;
+const blockSize: u32 = 16 * 1024;
 const bufferSize = @import("main.zig").bufferSize;
 
 pub const PeerMessageId = enum(u8) {
@@ -26,48 +26,53 @@ pub const PeerMessageId = enum(u8) {
 };
 
 pub const PeerMessage = struct {
-    pub const Head = extern struct {
-        length: u32 align(1),
-        id: PeerMessageId align(1),
-    };
-    head: PeerMessage.Head,
-    payload: []const u8 align(1),
+    length: u32,
+    id: PeerMessageId,
+    payload: []const u8,
 
     pub fn tryReceive(stream: std.net.Stream) !PeerMessage {
         const reader = stream.reader();
-        const head = try reader.readStruct(PeerMessage.Head);
-        var buffer: [bufferSize]u8 = undefined;
-        const l = try reader.read(buffer[0..head.length]);
-        if (l != head.length) {
-            return error.IncompleteMessage;
-        }
-        const payload = buffer[0..head.length];
-        return PeerMessage{ .head = head, .payload = payload };
+        const length = try reader.readInt(u32, .big);
+        const id = try reader.readByte();
+
+        try stderr.print("Header: length: {d}, id: {}\n", .{ length, id });
+        const payload = try allocator.alloc(u8, length - 1);
+        const l = try reader.readAll(payload);
+
+        try stderr.print("Received {d} bytes\n", .{l});
+        try stderr.print("Expected {d} bytes\n", .{length - 1});
+        return PeerMessage{ .length = length, .id = @enumFromInt(id), .payload = payload };
     }
 
     pub fn sendMessage(stream: std.net.Stream, message: PeerMessage) !void {
         const writer = stream.writer();
-        try writer.writeStruct(message.head);
-        _ = try writer.write(message.payload);
+        var buffer: [bufferSize]u8 = undefined;
+        std.mem.writeInt(u32, buffer[0..4], message.length, .big);
+        buffer[4] = @intCast(@intFromEnum(message.id));
+        try writer.writeAll(buffer[0..5]);
+        try writer.writeAll(message.payload);
     }
 
     pub fn buildMessage(id: PeerMessageId, payload: []const u8) !PeerMessage {
-        return PeerMessage{ .head = PeerMessage.Head{ .length = @intCast(payload.len), .id = id }, .payload = payload };
+        return PeerMessage{ .length = @intCast(payload.len + 1), .id = id, .payload = payload };
     }
 
-    pub fn buildRequestPayload(piece_index: usize, block_index: usize, piece_len: usize) []const u8 {
-        const index: u32 = @intCast(piece_index);
-        const begin: u32 = @intCast(block_index * block_size);
-        const length: u32 = @intCast(if (begin + block_size > piece_len) piece_len - begin else block_size);
-        var payload: [12]u8 = undefined;
+    pub fn buildRequestPayload(index: u32, begin: u32, length: u32, payload: []u8) !void {
         std.mem.writeInt(u32, payload[0..4], index, .big);
         std.mem.writeInt(u32, payload[4..8], begin, .big);
         std.mem.writeInt(u32, payload[8..12], length, .big);
-        return &payload;
+        try stderr.print(
+            "Payload: {d} {d} {d}\n",
+            .{
+                std.mem.readInt(u32, payload[0..4], .big),
+                std.mem.readInt(u32, payload[4..8], .big),
+                std.mem.readInt(u32, payload[8..12], .big),
+            },
+        );
     }
 };
 
-pub fn downloadPiece(torrent: Torrent, file_path: []const u8, piece_hash: []const u8, piece_index: usize) !void {
+pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, piece_index: usize) !void {
     const peers = try getPeers(torrent);
 
     try stderr.print("Trying to download piece {d} from {d} peer\n", .{ piece_index, peers.len });
@@ -77,80 +82,89 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, piece_hash: []cons
     const server_handshake = res.handshake;
     const stream = res.stream;
     defer stream.close();
+
+    try stderr.print("Handshake successful\n", .{});
+    try stderr.print("Checking hash\n", .{});
     if (!std.mem.eql(u8, &server_handshake.info_hash, &torrent.info_hash)) {
         return error.HashMismatch;
     }
 
     // receive bitfield message
+    try stderr.print("Try Receiving bitfield message\n", .{});
     const bitfieldMessage = try PeerMessage.tryReceive(stream);
-    if (bitfieldMessage.head.id != PeerMessageId.bitfield) {
+    if (bitfieldMessage.id != PeerMessageId.bitfield) {
         return error.UnexpectedMessage;
     }
+    try stderr.print("Received bitfield message\n", .{});
 
     // send interested message with empty payload
+    try stderr.print("Sending interested message\n", .{});
     const interestedMessage = try PeerMessage.buildMessage(PeerMessageId.interested, &[_]u8{});
     try PeerMessage.sendMessage(stream, interestedMessage);
+    try stderr.print("Sent interested message\n", .{});
 
     // receive unchoke message
+    try stderr.print("Try Receiving unchoke message\n", .{});
     const unchokeMessage = try PeerMessage.tryReceive(stream);
-    if (unchokeMessage.head.id != PeerMessageId.unchoke) {
+    if (unchokeMessage.id != PeerMessageId.unchoke) {
         return error.UnexpectedMessage;
     }
+    try stderr.print("Received unchoke message\n", .{});
 
     // send request message
-    var block_index: usize = 0;
-    while (block_index * block_size < torrent.info.piece_length) {
-        const requestPayload = PeerMessage.buildRequestPayload(
-            piece_index,
-            block_index,
-            @intCast(torrent.info.piece_length),
+    try stderr.print("Sending request message\n", .{});
+
+    const pieceLength: u32 = @intCast(torrent.info.piece_length);
+    _ = try allocator.alloc(
+        u8,
+        pieceLength,
+    );
+
+    var i: u32 = 0;
+
+    try stderr.print("Estiimated block count: {}\n", .{
+        pieceLength / blockSize + (if (pieceLength % blockSize != 0)
+            @as(u32, 1)
+        else
+            @as(u32, 0)),
+    });
+
+    var piece = try allocator.alloc(u8, pieceLength);
+
+    while (i * blockSize < pieceLength) {
+        var payload: [12]u8 = undefined;
+        try PeerMessage.buildRequestPayload(
+            @intCast(piece_index),
+            @intCast(i * blockSize),
+            if (pieceLength > blockSize * i + blockSize)
+                blockSize
+            else
+                pieceLength - blockSize * i,
+            &payload,
         );
-        const requestMessage = try PeerMessage.buildMessage(
-            PeerMessageId.request,
-            requestPayload,
+        const rqst = try PeerMessage.buildMessage(PeerMessageId.request, &payload);
+
+        try stderr.print(
+            "Sending request message for piece {d} block {d}\n",
+            .{ piece_index, i },
         );
 
-        try stderr.print("\n", .{});
-        try stderr.print("Sending request message", .{});
-        try stderr.print("Payload is", .{});
-        try stderr.print("{d} {d} {d}", .{ requestPayload[0..4], requestPayload[4..8], requestPayload[8..12] });
+        try PeerMessage.sendMessage(stream, rqst);
+        const pieceBlock = try PeerMessage.tryReceive(stream);
+        if (pieceBlock.id != .piece) return error.InvalidPiece;
+        i += 1;
 
-        try PeerMessage.sendMessage(stream, requestMessage);
-
-        // receive piece message
-        const pieceMessage = try PeerMessage.tryReceive(stream);
-        if (pieceMessage.head.id != PeerMessageId.piece) {
-            return error.UnexpectedMessage;
-        }
-
-        const piece_payload = pieceMessage.payload;
-
-        // verify piece hash
-        var received_piece_hash: [
-            hashSize
-        ]u8 = undefined;
-        std.crypto.hash.Sha1.hash(
-            piece_payload,
-            &received_piece_hash,
-            .{},
+        _ = std.mem.readInt(u32, pieceBlock.payload[0..4], .big);
+        const begin = std.mem.readInt(u32, pieceBlock.payload[4..8], .big);
+        @memcpy(
+            piece[begin .. begin + pieceBlock.payload.len - 8],
+            pieceBlock.payload[8..pieceBlock.payload.len],
         );
-        if (!std.mem.eql(u8, &received_piece_hash, piece_hash)) {
-            return error.HashMismatch;
-        }
-
-        // write piece to file
-        const file = try std.fs.cwd().openFile(
-            file_path,
-            std.fs.File.OpenFlags{ .mode = .write_only },
-        );
-        defer file.close();
-
-        const offset = piece_index * @as(usize, @intCast(torrent.info.piece_length)) + block_index * block_size;
-        _ = try file.seekTo(offset);
-        _ = try file.write(piece_payload);
-
-        block_index += 1;
     }
+
+    var file: std.fs.File = try std.fs.createFileAbsolute(file_path, .{});
+
+    try file.writeAll(piece);
 
     try stdout.print(
         "Piece {d} downloaded to {s}.",
