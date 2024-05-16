@@ -116,7 +116,10 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
     // send request message
     try stderr.print("Sending request message\n", .{});
 
-    const pieceLength: u32 = @intCast(torrent.info.piece_length);
+    const pieceLength: u32 = if (torrent.info.length > torrent.info.piece_length * piece_index)
+        torrent.info.piece_length
+    else
+        torrent.info.length - torrent.info.piece_length * piece_index;
     _ = try allocator.alloc(
         u8,
         pieceLength,
