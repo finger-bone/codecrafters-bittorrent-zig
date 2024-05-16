@@ -73,7 +73,7 @@ pub const PeerMessage = struct {
     }
 };
 
-pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, piece_index: usize) !void {
+pub fn downloadPiece(torrent: Torrent, piece_hash: []const u8, piece_index: usize) ![]u8 {
     try stderr.print(
         "Torrent Piece Length: {d}, Total: {d}, Piece Index: {d}\n",
         .{ torrent.info.piece_length, torrent.info.length, piece_index },
@@ -85,15 +85,11 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
 
     const res = try handshake(peers[1], torrent);
 
-    const server_handshake = res.handshake;
     const stream = res.stream;
     defer stream.close();
 
     try stderr.print("Handshake successful\n", .{});
     try stderr.print("Checking hash\n", .{});
-    if (!std.mem.eql(u8, &server_handshake.info_hash, &torrent.info_hash)) {
-        return error.HashMismatch;
-    }
 
     // receive bitfield message
     try stderr.print("Try Receiving bitfield message\n", .{});
@@ -132,6 +128,7 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
 
     while (i * blockSize < thisPieceSize) {
         var payload: [12]u8 = undefined;
+
         const blockLength = if (thisPieceSize > (blockSize * i + blockSize)) blockSize else thisPieceSize - blockSize * i;
 
         try stderr.print("\nBlock Index: {d}\n", .{i});
@@ -162,14 +159,13 @@ pub fn downloadPiece(torrent: Torrent, file_path: []const u8, _: []const u8, pie
         i += 1;
     }
 
-    var file: std.fs.File = try std.fs.createFileAbsolute(file_path, .{});
+    var receivedHash: [hashSize]u8 = undefined;
+    std.crypto.hash.Sha1.hash(piece, receivedHash[0..hashSize], .{});
+    if (!std.mem.eql(u8, piece_hash, &receivedHash)) {
+        return error.HashMismatch;
+    }
 
-    try file.writeAll(piece);
-
-    try stdout.print(
-        "Piece {d} downloaded to {s}.",
-        .{ piece_index, file_path },
-    );
+    return piece;
 }
 
 pub fn downloadPieceHandler(args: [][]const u8) !void {
@@ -181,5 +177,14 @@ pub fn downloadPieceHandler(args: [][]const u8) !void {
 
     const piece_hash = torrent.info.pieces[piece_index * hashSize .. (piece_index + 1) * hashSize];
 
-    try downloadPiece(torrent, output_file_path, piece_hash, piece_index);
+    const piece = try downloadPiece(torrent, piece_hash, piece_index);
+
+    var file: std.fs.File = try std.fs.createFileAbsolute(output_file_path, .{});
+
+    try file.writeAll(piece);
+
+    try stdout.print(
+        "Piece {d} downloaded to {s}.",
+        .{ piece_index, output_file_path },
+    );
 }

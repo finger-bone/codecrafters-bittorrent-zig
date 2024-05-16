@@ -7,6 +7,7 @@ const infoHandler = @import("info.zig").infoHandler;
 const peersHandler = @import("peer.zig").peersHandler;
 const handshakeHandler = @import("handshake.zig").handshakeHandler;
 const downloadPieceHandler = @import("download_piece.zig").downloadPieceHandler;
+const downloadHandler = @import("download.zig").downloadHandler;
 
 pub const bufferSize = 1024 * 128;
 
@@ -36,5 +37,8 @@ pub fn main() !void {
     } else if (std.mem.eql(u8, command, "download_piece")) {
         try stderr.print("download_piece\n", .{});
         try downloadPieceHandler(args);
+    } else if (std.mem.eql(u8, command, "download")) {
+        try stderr.print("download\n", .{});
+        try downloadHandler(args);
     }
 }
