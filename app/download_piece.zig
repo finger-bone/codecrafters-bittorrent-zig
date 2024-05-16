@@ -32,6 +32,7 @@ pub const PeerMessage = struct {
 
     pub fn tryReceive(stream: std.net.Stream) !PeerMessage {
         const reader = stream.reader();
+
         const length = try reader.readInt(u32, .big);
         const id = try reader.readByte();
 
