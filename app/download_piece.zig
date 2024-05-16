@@ -7,7 +7,7 @@ const Torrent = @import("parse.zig").Torrent;
 const handshake = @import("handshake.zig").handshake;
 const allocator = std.heap.page_allocator;
 const hashSize = @import("parse.zig").hashSize;
-const Handshake = @import("handshake.zig").Handshake;
+const Handshake = @import("handshake.zig").HandShake;
 
 // 16 KB
 const blockSize: u32 = 16 * 1024;
